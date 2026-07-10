@@ -1,0 +1,7 @@
+# Render Blueprint — static site (repo root is the publish root)
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: ask-ia
+    runtime: static
+    staticPublishPath: .
