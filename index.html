@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOLA MUNDO POSEÍDO</title>
+<style>
+  /* ===== Rotulación de tianguis: amarillo brutal, negro grueso, rojo de oferta ===== */
+  :root {
+    --amarillo: #FFD500;
+    --negro: #141210;
+    --rojo: #E5231B;
+    --blanco: #FFF8E7;
+    --azul: #1B4FE5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--amarillo);
+    color: var(--negro);
+    font-family: Georgia, 'Times New Roman', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+    background-image: repeating-linear-gradient(
+      -45deg, transparent 0 38px, rgba(0,0,0,.04) 38px 40px);
+    transition: background .6s ease, color .6s ease;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ===== Posesión total: la página muta al palette del espíritu ===== */
+  body.poseido {
+    background-image: repeating-linear-gradient(
+      -45deg, transparent 0 38px, rgba(0,0,0,.08) 38px 40px);
+  }
+
+  /* ===== Portal dimensional (canvas de partículas) ===== */
+  #portal-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9000;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  #portal-canvas.activo { opacity: 1; }
+
+  /* ===== Entidades manifestadas (colección acumulativa, motor maníaco) ===== */
+  #entidades {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    overflow: hidden;
+  }
+  /* Overlay de distorsión acumulativa: más espíritus = más caos visual */
+  #caos-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99;
+    opacity: 0;
+    mix-blend-mode: hard-light;
+    background:
+      repeating-conic-gradient(from 0deg, transparent 0deg 8deg, rgba(229,35,27,.04) 8deg 16deg),
+      radial-gradient(ellipse at 30% 20%, rgba(180,0,255,.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(229,35,27,.05) 0%, transparent 45%);
+    animation: caos-pulso 1.8s linear infinite;
+    transition: opacity .4s;
+  }
+  #flash-manifestacion {
+    position: fixed;
+    inset: 0;
+    background: var(--rojo);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 200;
+  }
+
+  .espiritu {
+    position: absolute;
+    left: 0;
+    top: 0;
+    will-change: transform;
+    filter: drop-shadow(0 0 14px var(--aura, rgba(255,255,255,.6)));
+  }
+  .espiritu-cuerpo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Arial Black', Impact, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: 11px;
+    transform-origin: center center;
+  }
+  .espiritu--recien .espiritu-cuerpo {
+    animation: surgir-aberracion .65s cubic-bezier(.15, 1.6, .4, 1) forwards;
+  }
+  .espiritu-emoji {
+    font-size: clamp(28px, 5vw, 44px);
+    line-height: 1;
+    display: block;
+    animation: emoji-maniaco .55s steps(3) infinite;
+  }
+  .espiritu-aura {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--aura, rgba(255,255,255,.5)) 0%, rgba(229,35,27,.35) 45%, transparent 72%);
+    position: absolute;
+    top: -6px;
+    z-index: -1;
+    animation: aura-maniaca .7s ease-in-out infinite alternate;
+  }
+  .espiritu-nombre {
+    background: var(--negro);
+    color: var(--blanco);
+    padding: 3px 8px;
+    border-radius: 2px;
+    max-width: 120px;
+    text-align: center;
+    font-size: 9px;
+    opacity: .9;
+  }
+
+  /* Estados maníacos impredecibles */
+  .espiritu--congelado .espiritu-cuerpo { filter: saturate(0) contrast(2.2) brightness(1.3); }
+  .espiritu--embiste .espiritu-emoji { animation-duration: .12s; }
+  .espiritu--embiste .espiritu-aura { animation-duration: .2s; }
+  .espiritu--invertido .espiritu-cuerpo { filter: invert(1) hue-rotate(160deg); }
+  .espiritu--teleporteo { opacity: .15; }
+  .espiritu--sacudida .espiritu-cuerpo { animation: sacudida-violenta .25s steps(4) 2; }
+  .espiritu--rojo .espiritu-cuerpo {
+    filter: drop-shadow(0 0 22px var(--rojo)) drop-shadow(0 0 40px rgba(229,35,27,.8));
+  }
+
+  /* Fantasmas / afterimages breves */
+  .espiritu-copia {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    opacity: .45;
+    filter: blur(3px) saturate(2);
+    animation: fantasma-desvanecer .55s ease-out forwards;
+  }
+
+  @keyframes caos-pulso {
+    0%   { transform: scale(1) rotate(0deg); }
+    50%  { transform: scale(1.02) rotate(.5deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  @keyframes surgir-aberracion {
+    0%   { transform: scale(5) rotate(-40deg); opacity: 0; filter: invert(1) brightness(2.5); }
+    12%  { opacity: 1; }
+    40%  { transform: scale(.25) rotate(200deg); filter: invert(0) brightness(1.8); }
+    65%  { transform: scale(2.2) rotate(-120deg); filter: drop-shadow(0 0 50px var(--rojo)); }
+    100% { transform: scale(1) rotate(0deg); filter: none; }
+  }
+  @keyframes emoji-maniaco {
+    0%   { transform: scale(1) rotate(0deg) translateY(0); }
+    33%  { transform: scale(1.55) rotate(35deg) translateY(-6px); }
+    66%  { transform: scale(.65) rotate(-50deg) translateY(4px); }
+    100% { transform: scale(1.2) rotate(80deg) translateY(-2px); }
+  }
+  @keyframes aura-maniaca {
+    0%   { transform: scale(.8) rotate(0deg); opacity: .5; }
+    50%  { transform: scale(1.6) rotate(180deg); opacity: 1; box-shadow: 0 0 30px var(--rojo); }
+    100% { transform: scale(.9) rotate(360deg); opacity: .6; }
+  }
+  @keyframes sacudida-violenta {
+    0%   { transform: translate(0, 0) rotate(0); }
+    25%  { transform: translate(-12px, 8px) rotate(-15deg); }
+    50%  { transform: translate(14px, -10px) rotate(18deg); }
+    75%  { transform: translate(-8px, -12px) rotate(-12deg); }
+    100% { transform: translate(0, 0) rotate(0); }
+  }
+  @keyframes fantasma-desvanecer {
+    0%   { opacity: .5; transform: scale(1.1); }
+    100% { opacity: 0; transform: scale(1.6) translate(20px, -15px); }
+  }
+  @keyframes flash-grito {
+    0%   { opacity: .85; }
+    15%  { opacity: .4; background: #fff; }
+    30%  { opacity: .7; background: var(--rojo); }
+    50%  { opacity: .2; }
+    100% { opacity: 0; }
+  }
+
+  /* ===== Temblor y glitch al manifestar ===== */
+  body.temblor {
+    animation: temblor-pantalla .45s ease-out;
+  }
+  @keyframes temblor-pantalla {
+    0%   { transform: translate(0, 0); }
+    10%  { transform: translate(-6px, 4px) rotate(-.4deg); }
+    20%  { transform: translate(5px, -3px) rotate(.5deg); }
+    30%  { transform: translate(-4px, -5px) rotate(-.3deg); }
+    40%  { transform: translate(7px, 2px) rotate(.4deg); }
+    50%  { transform: translate(-3px, 6px) rotate(-.2deg); }
+    60%  { transform: translate(4px, -4px) rotate(.3deg); }
+    70%  { transform: translate(-5px, 1px) rotate(-.4deg); }
+    80%  { transform: translate(3px, 5px) rotate(.2deg); }
+    90%  { transform: translate(-2px, -2px); }
+    100% { transform: translate(0, 0); }
+  }
+  .glitch {
+    animation: glitch-texto .35s steps(2) 3;
+    position: relative;
+  }
+  @keyframes glitch-texto {
+    0%   { transform: translate(0); text-shadow: 2px 0 var(--rojo), -2px 0 var(--azul); }
+    25%  { transform: translate(-3px, 1px); clip-path: inset(20% 0 30% 0); }
+    50%  { transform: translate(3px, -1px); clip-path: inset(60% 0 10% 0); }
+    75%  { transform: translate(-2px, 2px); clip-path: inset(40% 0 40% 0); }
+    100% { transform: translate(0); clip-path: none; text-shadow: 4px 4px 0 var(--rojo); }
+  }
+
+  .marquesina {
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-size: clamp(11px, 2vw, 14px);
+    letter-spacing: .35em;
+    text-transform: uppercase;
+    background: var(--negro);
+    color: var(--amarillo);
+    padding: 6px 18px;
+    transform: rotate(-1.5deg);
+    transition: background .6s, color .6s;
+  }
+
+  h1 {
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-size: clamp(42px, 9vw, 96px);
+    line-height: .95;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 22px 0 6px;
+    text-shadow: 4px 4px 0 var(--rojo);
+    letter-spacing: -0.02em;
+    transition: text-shadow .6s;
+  }
+  h1 span { color: var(--blanco); -webkit-text-stroke: 3px var(--negro); }
+
+  .sub {
+    text-align: center;
+    font-style: italic;
+    font-size: 17px;
+    max-width: 460px;
+    margin-bottom: 28px;
+  }
+
+  /* ===== Panel de configuración (letrero clavado) ===== */
+  .panel {
+    background: var(--blanco);
+    border: 3px solid var(--negro);
+    box-shadow: 8px 8px 0 var(--negro);
+    padding: 20px;
+    width: 100%;
+    max-width: 620px;
+    transform: rotate(.4deg);
+    transition: background .6s, border-color .6s, box-shadow .6s;
+  }
+  .panel label {
+    display: block;
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    margin: 14px 0 5px;
+  }
+  .panel label:first-child { margin-top: 0; }
+  .panel input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--negro);
+    background: var(--amarillo);
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    transition: background .6s, border-color .6s;
+  }
+  .panel input:focus { outline: 3px solid var(--azul); outline-offset: 1px; }
+  .hint { font-size: 12px; margin-top: 4px; opacity: .75; }
+  .hint a { color: var(--azul); }
+
+  /* ===== EL BOTÓN ===== */
+  #btn {
+    display: block;
+    margin: 34px auto 0;
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-size: clamp(20px, 4vw, 30px);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    background: var(--rojo);
+    color: var(--blanco);
+    border: 4px solid var(--negro);
+    box-shadow: 6px 6px 0 var(--negro);
+    padding: 18px 42px;
+    cursor: pointer;
+    transform: rotate(-1deg);
+    transition: transform .08s, background .6s, color .6s, border-color .6s, box-shadow .6s;
+  }
+  #btn:hover { transform: rotate(-1deg) scale(1.03); }
+  #btn:active { transform: rotate(-1deg) translate(6px, 6px); box-shadow: 0 0 0 var(--negro); }
+  #btn:disabled { opacity: .55; cursor: wait; }
+  #btn:focus-visible { outline: 4px solid var(--azul); outline-offset: 3px; }
+
+  /* ===== Escenario donde habla el poseído ===== */
+  #escenario {
+    margin-top: 40px;
+    width: 100%;
+    max-width: 720px;
+    min-height: 180px;
+    text-align: center;
+  }
+  .etiqueta-persona {
+    display: inline-block;
+    background: var(--azul);
+    color: var(--blanco);
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .15em;
+    padding: 6px 16px;
+    transform: rotate(1.2deg);
+    margin-bottom: 18px;
+    transition: background .6s;
+  }
+  #dicho {
+    font-size: clamp(22px, 4.5vw, 36px);
+    line-height: 1.3;
+    font-weight: bold;
+    white-space: pre-wrap;
+  }
+  #dicho.error { color: var(--rojo); font-size: 18px; font-weight: normal; font-family: 'Courier New', monospace; }
+
+  .cargando { animation: tiembla .15s infinite; }
+  @keyframes tiembla {
+    0% { transform: translate(0,0) rotate(0); }
+    25% { transform: translate(-2px,1px) rotate(-.5deg); }
+    50% { transform: translate(2px,-1px) rotate(.5deg); }
+    75% { transform: translate(-1px,-2px) rotate(-.3deg); }
+    100% { transform: translate(1px,2px) rotate(.3deg); }
+  }
+
+  /* ===== Contador de espíritus acumulados ===== */
+  #coleccion {
+    margin-top: 16px;
+    font-size: 12px;
+    font-family: 'Courier New', monospace;
+    opacity: .7;
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cargando { animation: none; }
+    #btn { transition: none; }
+    body.temblor { animation: none; }
+    .glitch { animation: none; }
+    .espiritu-emoji { animation: none; }
+    .espiritu-aura { animation-duration: 3s; animation-name: pulso-aura-suave; }
+    .espiritu--recien .espiritu-cuerpo { animation: surgir-suave .5s ease-out forwards; }
+    #caos-overlay { animation: none; }
+    @keyframes pulso-aura-suave {
+      0%, 100% { transform: scale(1); opacity: .7; }
+      50% { transform: scale(1.1); opacity: .9; }
+    }
+    @keyframes surgir-suave {
+      0% { transform: scale(1.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  }
+
+  footer { margin-top: 50px; font-size: 12px; opacity: .6; font-style: italic; }
+</style>
+</head>
+<body>
+
+  <canvas id="portal-canvas" aria-hidden="true"></canvas>
+  <div id="caos-overlay" aria-hidden="true"></div>
+  <div id="flash-manifestacion" aria-hidden="true"></div>
+  <div id="entidades" aria-hidden="true"></div>
+
+  <div class="marquesina">★ Gran barata de saludos ★ hoy hoy hoy ★</div>
+  <h1>Hola <span>Mundo</span><br>Poseído</h1>
+  <p class="sub">Cada click, un espíritu distinto se apodera del modelo y dice "hola mundo" a su manera. Nadie sabe quién saldrá.</p>
+
+  <div class="panel">
+    <label for="key">Tu API key de OpenRouter</label>
+    <input type="password" id="key" value="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" placeholder="sk-or-v1-..." autocomplete="off">
+    <p class="hint">Se queda en tu navegador, no se guarda en ningún lado. Consigue una gratis en <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a></p>
+
+    <label for="modelo">Modelo</label>
+    <input type="text" id="modelo" value="deepseek/deepseek-v4-flash">
+    <p class="hint">Pega cualquier modelo de OpenRouter. Los que terminan en <code>:free</code> no cuestan nada.</p>
+  </div>
+
+  <button id="btn">¡Invocar espíritu!</button>
+
+  <div id="escenario">
+    <div class="etiqueta-persona" id="etiqueta" hidden></div>
+    <p id="dicho"></p>
+    <p id="coleccion" hidden></p>
+  </div>
+
+  <footer>Un proyecto tonto pero poderoso · hecho con OpenRouter</footer>
+
+<script>
+const PERSONAS = [
+  "un luchador enmascarado retirado que extraña el ring y todo lo relaciona con llaves y candados",
+  "una abuelita conspiranoica convencida de que el mundo es un plan del gobierno",
+  "un gato existencialista francés que apenas tolera a la humanidad",
+  "un vendedor de tianguis gritando la mejor oferta de su vida",
+  "un pirata que perdió su barco en una apuesta de dominó",
+  "una inteligencia artificial del año 3024 que encuentra el 'hola mundo' adorablemente primitivo",
+  "un narrador de telenovela en el clímax dramático del capítulo final",
+  "un poeta maldito del siglo XIX profundamente ofendido por la brevedad de la frase",
+  "un comentarista de futbol narrando el saludo como si fuera gol de último minuto",
+  "una bruja del mercado que lee el futuro en el código fuente",
+  "un influencer de productividad que convierte todo en una rutina matutina",
+  "un dinosaurio que acaba de despertar y no entiende nada de internet",
+  "un mariachi despechado que todo lo canta con dolor",
+  "un extraterrestre burócrata que llegó a la Tierra solo a sellar papeles",
+  "un chef italiano escandalizado porque el 'hola mundo' no lleva suficiente amor",
+  "un detective noir de los años 40 que sospecha del propio saludo",
+  "una planta de interior que por fin puede hablar y tiene MUCHO que decir",
+  "un teporocho filósofo que encontró la verdad del universo en una banqueta",
+  "un caballero medieval transportado por error a una oficina de sistemas",
+  "un bebé genio de 8 meses con vocabulario de doctorado"
+];
+
+const btn = document.getElementById("btn");
+const dicho = document.getElementById("dicho");
+const etiqueta = document.getElementById("etiqueta");
+const coleccion = document.getElementById("coleccion");
+const entidadesEl = document.getElementById("entidades");
+const caosOverlay = document.getElementById("caos-overlay");
+const flashManifestacion = document.getElementById("flash-manifestacion");
+const portalCanvas = document.getElementById("portal-canvas");
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let espiritus = [];
+let audioCtx = null;
+let portalAnim = null;
+
+// ===== Portal dimensional: vórtice de partículas que succiona la pantalla =====
+const portal = (() => {
+  const ctx = portalCanvas.getContext("2d");
+  let particulas = [];
+  let activo = false;
+  let cx = 0, cy = 0;
+
+  function redimensionar() {
+    portalCanvas.width = window.innerWidth;
+    portalCanvas.height = window.innerHeight;
+    cx = portalCanvas.width / 2;
+    cy = portalCanvas.height / 2;
+  }
+  window.addEventListener("resize", redimensionar);
+  redimensionar();
+
+  function sembrar(n) {
+    particulas = [];
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = Math.max(portalCanvas.width, portalCanvas.height) * (.4 + Math.random() * .6);
+      particulas.push({
+        x: cx + Math.cos(ang) * dist,
+        y: cy + Math.sin(ang) * dist,
+        vx: 0, vy: 0,
+        tam: 1.5 + Math.random() * 3,
+        hue: 200 + Math.random() * 80,
+        vida: 1
+      });
+    }
+  }
+
+  function dibujar() {
+    ctx.fillStyle = "rgba(0,0,0,.12)";
+    ctx.fillRect(0, 0, portalCanvas.width, portalCanvas.height);
+
+    const t = Date.now() * .001;
+    const succion = 0.035 + Math.sin(t * 2) * .008;
+
+    for (const p of particulas) {
+      const dx = cx - p.x;
+      const dy = cy - p.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const fuerza = succion * (1 + 800 / (dist + 80));
+      p.vx += (dx / dist) * fuerza;
+      p.vy += (dy / dist) * fuerza;
+      p.vx *= .92;
+      p.vy *= .92;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vida = Math.min(1, p.vida + .02);
+
+      const alpha = Math.min(1, dist / 200) * p.vida;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.tam * (1 + 80 / (dist + 40)), 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 90%, 65%, ${alpha * .85})`;
+      ctx.fill();
+    }
+
+    // Núcleo del vórtice
+    const pulso = 30 + Math.sin(t * 4) * 12;
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pulso * 2.5);
+    grad.addColorStop(0, "rgba(180, 80, 255, .9)");
+    grad.addColorStop(.4, "rgba(80, 20, 160, .5)");
+    grad.addColorStop(1, "transparent");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, pulso * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, pulso * .4, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+  }
+
+  function loop() {
+    if (!activo) return;
+    dibujar();
+    portalAnim = requestAnimationFrame(loop);
+  }
+
+  return {
+    abrir() {
+      if (reduceMotion) return;
+      activo = true;
+      sembrar(180);
+      portalCanvas.classList.add("activo");
+      loop();
+    },
+    cerrar() {
+      activo = false;
+      if (portalAnim) cancelAnimationFrame(portalAnim);
+      portalCanvas.classList.remove("activo");
+      ctx.clearRect(0, 0, portalCanvas.width, portalCanvas.height);
+    }
+  };
+})();
+
+// ===== Theremin fantasmal (Web Audio API, sin archivos externos) =====
+function obtenerAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function sonidoInvocacion() {
+  if (reduceMotion) return;
+  const ctx = obtenerAudioCtx();
+  const dur = 2.8;
+  const ahora = ctx.currentTime;
+
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filtro = ctx.createBiquadFilter();
+  const lfo = ctx.createOscillator();
+  const lfoGain = ctx.createGain();
+
+  osc1.type = "sine";
+  osc2.type = "triangle";
+  osc1.frequency.setValueAtTime(180, ahora);
+  osc1.frequency.exponentialRampToValueAtTime(520, ahora + dur * .6);
+  osc1.frequency.exponentialRampToValueAtTime(90, ahora + dur);
+  osc2.frequency.setValueAtTime(185, ahora);
+  osc2.frequency.exponentialRampToValueAtTime(530, ahora + dur * .55);
+  osc2.frequency.exponentialRampToValueAtTime(85, ahora + dur);
+
+  lfo.type = "sine";
+  lfo.frequency.value = 5.5;
+  lfoGain.gain.value = 35;
+  lfo.connect(lfoGain);
+  lfoGain.connect(osc1.frequency);
+  lfoGain.connect(osc2.frequency);
+
+  filtro.type = "bandpass";
+  filtro.frequency.setValueAtTime(400, ahora);
+  filtro.frequency.exponentialRampToValueAtTime(1200, ahora + dur * .5);
+  filtro.Q.value = 8;
+
+  gain.gain.setValueAtTime(0, ahora);
+  gain.gain.linearRampToValueAtTime(.18, ahora + .15);
+  gain.gain.setValueAtTime(.18, ahora + dur * .7);
+  gain.gain.exponentialRampToValueAtTime(.001, ahora + dur);
+
+  osc1.connect(filtro);
+  osc2.connect(filtro);
+  filtro.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc1.start(ahora);
+  osc2.start(ahora);
+  lfo.start(ahora);
+  osc1.stop(ahora + dur);
+  osc2.stop(ahora + dur);
+  lfo.stop(ahora + dur);
+}
+
+// ===== Voz del espíritu (Web Speech API) =====
+let vocesEspiritu = [];
+
+function refrescarVocesEspiritu() {
+  if (!("speechSynthesis" in window)) return;
+  const v = window.speechSynthesis.getVoices();
+  if (v.length) vocesEspiritu = v;
+}
+
+if ("speechSynthesis" in window) {
+  refrescarVocesEspiritu();
+  window.speechSynthesis.addEventListener("voiceschanged", refrescarVocesEspiritu);
+}
+
+function elegirVozEspiritu() {
+  const es = vocesEspiritu.filter(v => /^es/i.test(v.lang || ""));
+  const pool = es.length ? es : vocesEspiritu;
+  if (!pool.length) return null;
+
+  function puntaje(v) {
+    const n = (v.name || "").toLowerCase();
+    const l = (v.lang || "").toLowerCase();
+    let p = /^es-es/.test(l) ? 4 : /^es-mx/.test(l) ? 3 : /^es/.test(l) ? 2 : 0;
+    if (/premium|enhanced|natural|neural|siri|online/.test(n)) p += 6;
+    if (/paulina|monica|jorge|paloma|helena|google español|microsoft.*spanish/.test(n)) p += 4;
+    if (/compact|espeak|android/.test(n)) p -= 4;
+    return p;
+  }
+
+  pool.sort((a, b) => puntaje(b) - puntaje(a));
+  const mejores = pool.slice(0, Math.min(3, pool.length));
+  return mejores[Math.floor(Math.random() * mejores.length)];
+}
+
+function partirFraseEspiritu(texto) {
+  const t = String(texto || "").trim();
+  if (!t) return [];
+  if (t.length <= 120) return [t];
+  return t.split(/(?<=[.!?…])\s+/).filter(Boolean);
+}
+
+function hablarEspiritu(texto) {
+  if (!("speechSynthesis" in window)) return;
+
+  function emitir() {
+    window.speechSynthesis.cancel();
+    const voz = elegirVozEspiritu();
+    const trozos = partirFraseEspiritu(texto);
+    if (!trozos.length) return;
+
+    // Rango estrecho: casi natural, solo un tinte sutil de lo inquietante
+    const pitch = 0.92 + Math.random() * 0.13;  // 0.92–1.05
+    const rate = 0.92 + Math.random() * 0.06;   // 0.92–0.98
+    const volume = 0.85;
+
+    for (const trozo of trozos) {
+      const u = new SpeechSynthesisUtterance(trozo);
+      if (voz) {
+        u.voice = voz;
+        u.lang = voz.lang;
+      } else {
+        u.lang = "es-ES";
+      }
+      u.pitch = pitch;
+      u.rate = rate;
+      u.volume = volume;
+      window.speechSynthesis.speak(u);
+    }
+  }
+
+  refrescarVocesEspiritu();
+  if (vocesEspiritu.length) {
+    emitir();
+    return;
+  }
+
+  const esperarVoces = () => {
+    refrescarVocesEspiritu();
+    if (vocesEspiritu.length) {
+      window.speechSynthesis.removeEventListener("voiceschanged", esperarVoces);
+      emitir();
+    }
+  };
+  window.speechSynthesis.addEventListener("voiceschanged", esperarVoces);
+  window.speechSynthesis.getVoices(); // despertar carga en Chrome/Safari
+}
+
+// ===== Parseo robusto del JSON del espíritu =====
+const DEV_ESPIRITU = /localhost|127\.0\.0\.1/.test(location.hostname) || /[?&]debug\b/.test(location.search);
+
+const PALETAS_TIANGUIS = [
+  { primario: "#FFD500", secundario: "#141210", acento: "#E5231B" },
+  { primario: "#FF6B00", secundario: "#1A0A00", acento: "#00C896" },
+  { primario: "#B4FF00", secundario: "#0D1400", acento: "#FF00AA" },
+  { primario: "#00D4FF", secundario: "#001428", acento: "#FF3366" }
+];
+
+const EMOJIS_TIANGUIS = ["👻", "🎭", "🔮", "⚡", "🌶️", "💀", "🦎", "🎪", "🧿", "🦜"];
+
+function paletaTianguisAleatoria() {
+  return PALETAS_TIANGUIS[Math.floor(Math.random() * PALETAS_TIANGUIS.length)];
+}
+
+function espirituPorDefecto(persona) {
+  const p = persona || PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+  const colores = paletaTianguisAleatoria();
+  return {
+    saludo: "¡HOLA MUNDO! — grita un espíritu poseído por " + p + ", sin poder articular más.",
+    emoji: EMOJIS_TIANGUIS[Math.floor(Math.random() * EMOJIS_TIANGUIS.length)],
+    nombre: "Espíritu del tianguis",
+    colores: { ...colores }
+  };
+}
+
+function limpiarTextoJSON(texto) {
+  let raw = String(texto || "").trim();
+  raw = raw.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, "$1");
+  raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  return raw.trim();
+}
+
+function extraerBloqueJSON(raw) {
+  const inicio = raw.indexOf("{");
+  const fin = raw.lastIndexOf("}");
+  if (inicio === -1 || fin === -1 || fin <= inicio) return null;
+  return raw.slice(inicio, fin + 1);
+}
+
+function repararJSONComun(s) {
+  let t = s;
+  t = t.replace(/,\s*([}\]])/g, "$1");
+  t = t.replace(/([{,]\s*)([a-zA-Z_][\w]*)(\s*:)/g, '$1"$2"$3');
+  t = t.replace(/'/g, '"');
+  t = t.replace(/[\u201c\u201d]/g, '"');
+  return t;
+}
+
+function intentarParseJSON(candidato) {
+  if (!candidato) return null;
+  const intentos = [candidato, repararJSONComun(candidato)];
+  for (const s of intentos) {
+    try {
+      const d = JSON.parse(s);
+      if (d && typeof d === "object") return d;
+    } catch { /* siguiente estrategia */ }
+  }
+  return null;
+}
+
+function extraerCamposPorRegex(raw) {
+  const pick = (re) => {
+    const m = raw.match(re);
+    return m ? m[1].trim() : "";
+  };
+  const saludo = pick(/"(?:saludo|mensaje)"\s*:\s*"((?:\\.|[^"\\])*)"/i)
+    || pick(/(?:saludo|mensaje)\s*:\s*['"]([^'"]+)['"]/i)
+    || pick(/(?:saludo|mensaje)\s*:\s*([^,\n}]+)/i);
+  const emoji = pick(/"emoji"\s*:\s*"((?:\\.|[^"\\])*)"/i)
+    || pick(/emoji\s*:\s*['"]?([^'"\s,}]+)['"]?/i);
+  const nombre = pick(/"nombre"\s*:\s*"((?:\\.|[^"\\])*)"/i)
+    || pick(/nombre\s*:\s*['"]([^'"]+)['"]/i);
+  const primario = pick(/"primario"\s*:\s*"((?:\\.|[^"\\])*)"/i)
+    || pick(/primario\s*:\s*['"]?(#[0-9A-Fa-f]{3,8})['"]?/i);
+  const secundario = pick(/"secundario"\s*:\s*"((?:\\.|[^"\\])*)"/i)
+    || pick(/secundario\s*:\s*['"]?(#[0-9A-Fa-f]{3,8})['"]?/i);
+  const acento = pick(/"acento"\s*:\s*"((?:\\.|[^"\\])*)"/i)
+    || pick(/acento\s*:\s*['"]?(#[0-9A-Fa-f]{3,8})['"]?/i);
+  if (!saludo && !emoji && !nombre && !primario) return null;
+  return {
+    saludo: saludo.replace(/\\n/g, "\n").replace(/\\"/g, '"'),
+    emoji,
+    nombre,
+    colores: { primario, secundario, acento }
+  };
+}
+
+function normalizarEspiritu(datos, persona) {
+  const fallback = espirituPorDefecto(persona);
+  const col = datos.colores || datos.palette || datos.color || {};
+
+  const saludo = String(datos.saludo || datos.mensaje || datos.texto || datos.message || "").trim();
+  const emoji = String(datos.emoji || datos.icon || "").trim().slice(0, 4);
+  const nombre = String(datos.nombre || datos.name || datos.persona || "").trim();
+
+  const colores = {
+    primario: validarColor(col.primario || col.primary || col.fondo, fallback.colores.primario),
+    secundario: validarColor(col.secundario || col.secondary || col.texto, fallback.colores.secundario),
+    acento: validarColor(col.acento || col.accent, fallback.colores.acento)
+  };
+
+  return {
+    saludo: saludo || fallback.saludo,
+    emoji: emoji || fallback.emoji,
+    nombre: nombre || fallback.nombre,
+    colores
+  };
+}
+
+function extraerEspirituJSON(texto, persona) {
+  if (!texto || !String(texto).trim()) {
+    if (DEV_ESPIRITU) console.warn("[espíritu] Respuesta vacía; defaults de tianguis.");
+    return { espiritu: espirituPorDefecto(persona), parseable: false };
+  }
+
+  const raw = limpiarTextoJSON(texto);
+  let datos = null;
+  let origen = "default";
+
+  datos = intentarParseJSON(raw);
+  if (datos) origen = "json";
+  if (!datos) {
+    const bloque = extraerBloqueJSON(raw);
+    datos = intentarParseJSON(bloque);
+    if (datos) origen = "json";
+  }
+  if (!datos) {
+    datos = extraerCamposPorRegex(raw);
+    if (datos) origen = "regex";
+  }
+
+  if (!datos) {
+    const snippet = raw.slice(0, 200).replace(/\s+/g, " ");
+    if (DEV_ESPIRITU) console.warn("[espíritu] JSON irrecuperable; snippet:", snippet);
+    const fb = espirituPorDefecto(persona);
+    const saludoSuelt = raw.replace(/[{}"[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, 280);
+    if (saludoSuelt.length > 8) {
+      fb.saludo = saludoSuelt;
+      return { espiritu: fb, parseable: true };
+    }
+    return { espiritu: fb, parseable: false };
+  }
+
+  const espiritu = normalizarEspiritu(datos, persona);
+  const teniaSaludo = !!(datos.saludo || datos.mensaje || datos.texto || datos.message);
+  if (!teniaSaludo && !espiritu.saludo) {
+    if (DEV_ESPIRITU) console.warn("[espíritu] Sin saludo tras normalizar; defaults.");
+    return { espiritu: espirituPorDefecto(persona), parseable: false };
+  }
+  return { espiritu, parseable: teniaSaludo || origen === "regex" };
+}
+
+function promptSistemaEspiritu(persona, estricto) {
+  const base =
+    "Estás totalmente poseído por el espíritu de " + persona + ". " +
+    "Tu ÚNICA salida debe ser UN objeto JSON. Prohibido: markdown, ``` fences, explicaciones, texto antes o después del JSON, comentarios.\n" +
+    "Esquema EXACTO (copia la estructura, sustituye valores):\n" +
+    '{"saludo":"¡HOLA MUNDO! (máx 3 frases cortas, exagerado, en español)","emoji":"🎭","nombre":"Nombre Corto","colores":{"primario":"#FFD500","secundario":"#141210","acento":"#E5231B"}}\n' +
+    "Reglas: saludo debe incluir 'hola mundo' en tu voz poseída; emoji = un solo emoji; colores = hex #RRGGBB que reflejen tu personalidad.";
+  if (estricto) {
+    return base + " RESPONDE SOLO JSON. Nada más. Sin saludos fuera del JSON. Sin prosa.";
+  }
+  return base;
+}
+
+async function invocarModeloEspiritu(key, modelo, persona, estricto) {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + key,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: modelo,
+      temperature: estricto ? 0.7 : 1.1,
+      max_tokens: 280,
+      messages: [
+        { role: "system", content: promptSistemaEspiritu(persona, estricto) },
+        {
+          role: "user",
+          content: estricto
+            ? "SOLO JSON. Sin markdown. Sin texto extra. Manifiéstate con hola mundo."
+            : "Manifiéstate. Di hola mundo."
+        }
+      ]
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    const msg = data?.error?.message || ("Error " + res.status);
+    throw new Error(msg);
+  }
+  return data.choices?.[0]?.message?.content?.trim() || "";
+}
+
+function saludoRecuperable(espiritu) {
+  return String(espiritu?.saludo || "").trim().length > 0;
+}
+
+function validarColor(val, fallback) {
+  if (!val || typeof val !== "string") return fallback;
+  const s = val.trim();
+  if (/^#[0-9A-Fa-f]{3,8}$/.test(s)) return s;
+  if (/^rgb/.test(s)) return s;
+  return fallback;
+}
+
+// ===== Posesión total de la página con palette del espíritu =====
+function poseerPagina(colores) {
+  const root = document.documentElement;
+  root.style.setProperty("--amarillo", colores.primario);
+  root.style.setProperty("--negro", colores.secundario);
+  root.style.setProperty("--rojo", colores.acento);
+  root.style.setProperty("--blanco", mezclarConBlanco(colores.primario, .88));
+  root.style.setProperty("--azul", mezclarColores(colores.secundario, colores.acento, .5));
+  document.body.classList.add("poseido");
+}
+
+function mezclarConBlanco(hex, ratio) {
+  const rgb = hexARgb(hex);
+  if (!rgb) return "#FFF8E7";
+  const r = Math.round(rgb.r + (255 - rgb.r) * ratio);
+  const g = Math.round(rgb.g + (255 - rgb.g) * ratio);
+  const b = Math.round(rgb.b + (255 - rgb.b) * ratio);
+  return `rgb(${r},${g},${b})`;
+}
+
+function mezclarColores(a, b, t) {
+  const ra = hexARgb(a), rb = hexARgb(b);
+  if (!ra || !rb) return "#1B4FE5";
+  const r = Math.round(ra.r * (1 - t) + rb.r * t);
+  const g = Math.round(ra.g * (1 - t) + rb.g * t);
+  const bl = Math.round(ra.b * (1 - t) + rb.b * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function hexARgb(hex) {
+  const m = hex.replace("#", "").match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return null;
+  return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
+}
+
+// ===== Motor maníaco: movimiento errático, persecución, estados impredecibles =====
+const motorEspiritus = (() => {
+  const activos = [];
+  let rafId = null;
+  let mouseX = window.innerWidth * .5;
+  let mouseY = window.innerHeight * .5;
+
+  if (!reduceMotion) {
+    window.addEventListener("mousemove", e => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+  }
+
+  const CLASES_ESTADO = [
+    "espiritu--congelado", "espiritu--embiste", "espiritu--invertido",
+    "espiritu--teleporteo", "espiritu--sacudida", "espiritu--rojo"
+  ];
+
+  function limpiarEstados(el) {
+    el.classList.remove(...CLASES_ESTADO);
+  }
+
+  function crearFantasma(esp) {
+    const copia = esp.el.cloneNode(true);
+    copia.classList.add("espiritu-copia");
+    copia.classList.remove("espiritu--recien");
+    copia.style.transform = esp.el.style.transform;
+    entidadesEl.appendChild(copia);
+    setTimeout(() => copia.remove(), 550);
+  }
+
+  function cambiarEstado(esp) {
+    limpiarEstados(esp.el);
+    const roll = Math.random();
+    esp.timerEstado = 25 + Math.floor(Math.random() * 70);
+
+    if (roll < .14) {
+      esp.estado = "congelado";
+      esp.el.classList.add("espiritu--congelado");
+      esp.vx = 0; esp.vy = 0;
+    } else if (roll < .28) {
+      esp.estado = "embiste";
+      esp.el.classList.add("espiritu--embiste", "espiritu--rojo");
+      const ang = Math.random() * Math.PI * 2;
+      const vel = 18 + Math.random() * 22;
+      esp.vx = Math.cos(ang) * vel;
+      esp.vy = Math.sin(ang) * vel;
+    } else if (roll < .4) {
+      esp.estado = "perseguir";
+      esp.chaseTimer = 50 + Math.floor(Math.random() * 70);
+      esp.el.classList.add("espiritu--rojo");
+    } else if (roll < .52) {
+      esp.estado = "teleporteo";
+      esp.el.classList.add("espiritu--teleporteo");
+      esp.x = 40 + Math.random() * (window.innerWidth - 80);
+      esp.y = 40 + Math.random() * (window.innerHeight - 80);
+      esp.vx = (Math.random() - .5) * 8;
+      esp.vy = (Math.random() - .5) * 8;
+      setTimeout(() => esp.el.classList.remove("espiritu--teleporteo"), 120);
+    } else if (roll < .64) {
+      esp.estado = "invertido";
+      esp.el.classList.add("espiritu--invertido");
+      esp.vx = (Math.random() - .5) * 6;
+      esp.vy = (Math.random() - .5) * 6;
+    } else if (roll < .76) {
+      esp.estado = "sacudida";
+      esp.el.classList.add("espiritu--sacudida");
+      crearFantasma(esp);
+      esp.vx = (Math.random() - .5) * 14;
+      esp.vy = (Math.random() - .5) * 14;
+    } else if (roll < .86) {
+      esp.estado = "duplicar";
+      crearFantasma(esp);
+      crearFantasma(esp);
+      esp.vx = (Math.random() - .5) * 10;
+      esp.vy = (Math.random() - .5) * 10;
+    } else {
+      esp.estado = "vagar";
+      esp.vx = (Math.random() - .5) * 5;
+      esp.vy = (Math.random() - .5) * 5;
+    }
+  }
+
+  function registrar(el) {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const lado = Math.floor(Math.random() * 4);
+    const margin = 140;
+    let x, y;
+    if (lado === 0) { x = -margin; y = Math.random() * H; }
+    else if (lado === 1) { x = W + margin; y = Math.random() * H; }
+    else if (lado === 2) { x = Math.random() * W; y = -margin; }
+    else { x = Math.random() * W; y = H + margin; }
+
+    const esp = {
+      el, x, y,
+      vx: (W * .5 - x) * .06,
+      vy: (H * .5 - y) * .06,
+      estado: "surgir",
+      timerEstado: 0,
+      chaseTimer: 0,
+      rot: 0,
+      uid: Math.random()
+    };
+
+    el.classList.add("espiritu--recien");
+    activos.push(esp);
+
+    setTimeout(() => {
+      el.classList.remove("espiritu--recien");
+      esp.estado = "vagar";
+      cambiarEstado(esp);
+    }, reduceMotion ? 400 : 650);
+
+    if (!rafId) loop();
+  }
+
+  function loop() {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const factor = 1 + activos.length * .18;
+
+    for (const esp of activos) {
+      if (esp.estado === "surgir") {
+        esp.x += esp.vx;
+        esp.y += esp.vy;
+      } else if (reduceMotion) {
+        esp.x += Math.sin(Date.now() * .0008 + esp.uid * 12) * .4;
+        esp.y += Math.cos(Date.now() * .0007 + esp.uid * 9) * .4;
+      } else {
+        esp.timerEstado--;
+        if (esp.timerEstado <= 0) cambiarEstado(esp);
+
+        esp.x += esp.vx + (Math.random() - .5) * 2.5 * factor;
+        esp.y += esp.vy + (Math.random() - .5) * 2.5 * factor;
+
+        if (esp.estado === "perseguir" && esp.chaseTimer-- > 0) {
+          const dx = mouseX - esp.x;
+          const dy = mouseY - esp.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          esp.vx += (dx / dist) * 1.4 * factor;
+          esp.vy += (dy / dist) * 1.4 * factor;
+        }
+
+        const pad = 36;
+        if (esp.x < pad) { esp.x = pad; esp.vx = Math.abs(esp.vx) * (1.3 + Math.random() * .6); esp.rot += 40; }
+        if (esp.x > W - pad) { esp.x = W - pad; esp.vx = -Math.abs(esp.vx) * (1.3 + Math.random() * .6); esp.rot -= 40; }
+        if (esp.y < pad) { esp.y = pad; esp.vy = Math.abs(esp.vy) * (1.3 + Math.random() * .6); }
+        if (esp.y > H - pad) { esp.y = H - pad; esp.vy = -Math.abs(esp.vy) * (1.3 + Math.random() * .6); }
+
+        esp.vx *= .94;
+        esp.vy *= .94;
+
+        if (Math.random() < .01 * factor) {
+          const ang = Math.random() * Math.PI * 2;
+          esp.vx += Math.cos(ang) * 14;
+          esp.vy += Math.sin(ang) * 14;
+        }
+      }
+
+      const rot = reduceMotion
+        ? Math.sin(Date.now() * .001 + esp.uid) * 4
+        : esp.rot + (Math.random() - .5) * 25 + Math.sin(Date.now() * .008 + esp.uid) * 12;
+      const scale = esp.estado === "embiste" ? 1.35
+        : esp.estado === "congelado" ? 1.05
+        : 1 + Math.sin(Date.now() * .012 + esp.uid) * .18;
+      esp.el.style.transform = `translate(${esp.x}px, ${esp.y}px) rotate(${rot}deg) scale(${scale})`;
+    }
+
+    rafId = requestAnimationFrame(loop);
+  }
+
+  return { registrar, count: () => activos.length };
+})();
+
+// ===== Manifestar entidad flotante (colección acumulativa) =====
+function manifestarEntidad(espiritu) {
+  const el = document.createElement("div");
+  el.className = "espiritu";
+  el.style.setProperty("--aura", espiritu.colores.acento);
+
+  el.innerHTML =
+    '<div class="espiritu-cuerpo">' +
+      '<div class="espiritu-aura"></div>' +
+      '<span class="espiritu-emoji">' + escapeHtml(espiritu.emoji) + '</span>' +
+      '<span class="espiritu-nombre">' + escapeHtml(espiritu.nombre) + '</span>' +
+    '</div>';
+
+  entidadesEl.appendChild(el);
+  motorEspiritus.registrar(el);
+  espiritus.push(espiritu);
+  actualizarColeccion();
+}
+
+function actualizarColeccion() {
+  const n = espiritus.length;
+  coleccion.hidden = n === 0;
+  coleccion.textContent = n === 1
+    ? "1 espíritu rondando la página"
+    : n + " espíritus rondando la página";
+
+  // Más espíritus = overlay de distorsión más intenso
+  if (caosOverlay) {
+    const op = reduceMotion
+      ? Math.min(.12, n * .03)
+      : Math.min(.55, n * .09);
+    caosOverlay.style.opacity = String(op);
+    caosOverlay.style.animationDuration = Math.max(.6, 2.2 - n * .15) + "s";
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ===== Temblor, flash y glitch al manifestar =====
+function efectoManifestacion() {
+  document.body.classList.remove("temblor");
+  void document.body.offsetWidth;
+  if (!reduceMotion) {
+    document.body.classList.add("temblor");
+    dicho.classList.add("glitch");
+    if (flashManifestacion) {
+      flashManifestacion.style.animation = "none";
+      void flashManifestacion.offsetWidth;
+      flashManifestacion.style.animation = "flash-grito .45s ease-out forwards";
+      setTimeout(() => { flashManifestacion.style.animation = ""; }, 500);
+    }
+  }
+  setTimeout(() => {
+    document.body.classList.remove("temblor");
+    dicho.classList.remove("glitch");
+  }, reduceMotion ? 200 : 500);
+}
+
+// ===== Invocación principal =====
+btn.addEventListener("click", async () => {
+  const key = document.getElementById("key").value.trim();
+  const modelo = document.getElementById("modelo").value.trim();
+
+  if (!key) {
+    mostrarError("Falta tu API key de OpenRouter. Pégala arriba y volvemos a intentar.");
+    return;
+  }
+  if (!modelo) {
+    mostrarError("Falta el modelo. Escribe uno, por ejemplo: deepseek/deepseek-v4-flash");
+    return;
+  }
+
+  const persona = PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+
+  btn.disabled = true;
+  etiqueta.hidden = true;
+  dicho.classList.remove("error");
+  dicho.classList.add("cargando");
+  dicho.textContent = "invocando espíritu...";
+
+  portal.abrir();
+  sonidoInvocacion();
+
+  try {
+    let texto = await invocarModeloEspiritu(key, modelo, persona, false);
+    let { espiritu, parseable } = extraerEspirituJSON(texto, persona);
+
+    if (!parseable) {
+      if (DEV_ESPIRITU) console.warn("[espíritu] Reintento automático (respuesta no parseable).");
+      texto = await invocarModeloEspiritu(key, modelo, persona, true);
+      ({ espiritu, parseable } = extraerEspirituJSON(texto, persona));
+    }
+
+    if (!saludoRecuperable(espiritu)) {
+      throw new Error("No se pudo recuperar ningún saludo del espíritu.");
+    }
+
+    portal.cerrar();
+    poseerPagina(espiritu.colores);
+    manifestarEntidad(espiritu);
+    efectoManifestacion();
+
+    dicho.classList.remove("cargando");
+    etiqueta.textContent = espiritu.emoji + " " + espiritu.nombre;
+    etiqueta.hidden = false;
+
+    // Efecto máquina de escribir poseída
+    dicho.textContent = "";
+    if (reduceMotion) {
+      dicho.textContent = espiritu.saludo;
+    } else {
+      let i = 0;
+      const tick = setInterval(() => {
+        dicho.textContent += espiritu.saludo[i++];
+        if (i >= espiritu.saludo.length) clearInterval(tick);
+      }, 22);
+    }
+
+    hablarEspiritu(espiritu.saludo);
+  } catch (err) {
+    portal.cerrar();
+    mostrarError("El espíritu se negó a aparecer: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function mostrarError(msg) {
+  dicho.classList.remove("cargando");
+  dicho.classList.add("error");
+  etiqueta.hidden = true;
+  dicho.textContent = "⚠ " + msg;
+}
+</script>
+</body>
+</html>
